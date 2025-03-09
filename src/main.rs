@@ -1,10 +1,22 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+                                                                   //
+use we_clap::WeParser;
+
+use eframe_template::Opts;
+
+/// clap code just once for native and the web
+fn get_opts() -> Opts {
+    Opts::we_parse()
+}
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+
+    // get cli options
+    let opts = get_opts();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -20,7 +32,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Ok(Box::new(eframe_template::TemplateApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(eframe_template::TemplateApp::new(cc, opts)))),
     )
 }
 
@@ -31,6 +43,9 @@ fn main() {
 
     // Redirect `log` message to `console.log` and friends:
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+    // get cli options
+    let opts = get_opts();
 
     let web_options = eframe::WebOptions::default();
 
@@ -50,7 +65,8 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(eframe_template::TemplateApp::new(cc)))),
+                // pass the cli options to the closure
+                Box::new(|cc| Ok(Box::new(eframe_template::TemplateApp::new(cc, opts)))),
             )
             .await;
 

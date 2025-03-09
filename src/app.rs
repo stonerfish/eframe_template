@@ -1,3 +1,27 @@
+use clap::Parser;
+
+impl we_clap::WeParser for Opts {}
+
+#[derive(Parser, Debug, Default)]
+#[command(author, version, about, long_about)]
+pub struct Opts {
+    /// Name to greet
+    #[arg(short, long)]
+    pub name: Option<String>,
+
+    /// Value
+    #[arg(short, long)]
+    pub value: Option<f32>,
+
+    /// Zoom factor
+    #[arg(short, long)]
+    pub zoom: Option<f32>,
+
+    /// Start fresh, do not load stored state
+    #[arg(short, long)]
+    pub fresh: bool,
+}
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -21,17 +45,30 @@ impl Default for TemplateApp {
 
 impl TemplateApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, opts: Opts) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        // Load previous app state (if any).
+        // If the fresh option was not give, then load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        let storage = if opts.fresh { None } else { cc.storage };
+        let mut app: TemplateApp = match storage {
+            Some(storage) => eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default(),
+            _ => TemplateApp::default(),
+        };
+
+        // If command line arguments were given, use them.
+        if let Some(name) = opts.name {
+            app.label = format!("Hello {name}!");
+        }
+        if let Some(value) = opts.value {
+            app.value = value;
+        }
+        if let Some(zoom) = opts.zoom {
+            cc.egui_ctx.set_zoom_factor(zoom);
         }
 
-        Default::default()
+        app
     }
 }
 
@@ -83,7 +120,7 @@ impl eframe::App for TemplateApp {
 
             ui.add(egui::github_link_file!(
                 "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
+                "the Source code."
             ));
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
